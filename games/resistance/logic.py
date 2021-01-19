@@ -112,8 +112,6 @@ class GameInstance:
             raise GameError(f"Current game state ({self.state}) is changed automatically.")
 
     def propose_party(self, player: Player, players: list[Player]) -> None:
-        self._assert_registered(player)
-
         if self.state != GameState.PROPOSAL_PENDING:
             raise GameError("Party proposal not pending!")
         if player != self.leader:
@@ -129,8 +127,6 @@ class GameInstance:
         self.state = GameState.PARTY_VOTE_IN_PROGRESS
 
     def vote_party(self, player: Player, outcome: bool) -> None:
-        self._assert_registered(player)
-
         if self.state != GameState.PARTY_VOTE_IN_PROGRESS:
             raise GameError("Party vote not in progress!")
         if player in self.current_vote.ballots:
@@ -145,8 +141,6 @@ class GameInstance:
             self._log("Vote over: party is %s", "appointed" if self.current_vote.outcome else "rejected")
 
     def vote_mission(self, player: Player, outcome: bool) -> None:
-        self._assert_registered(player)
-
         if self.state != GameState.MISSION_VOTE_IN_PROGRESS:
             raise GameError("Mission vote not in progress!")
         if player in self.current_round.ballots:
@@ -222,10 +216,6 @@ class GameInstance:
         elif spy_wins >= WIN_LIMIT:
             return False
         return None
-
-    def _assert_registered(self, player: Player) -> None:
-        if player not in self.players:
-            raise GameError("You are not registered!")
 
     def _assign_spies(self) -> None:
         # According to the official rules, one third of players (rounded up) are spies

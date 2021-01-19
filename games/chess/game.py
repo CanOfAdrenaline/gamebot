@@ -1,6 +1,8 @@
+from typing import Iterable, Callable
+
 from core.api import Game, Action
 
 
 class Chess(Game):
-    async def handle(self, action: Action) -> None:
+    def handle(self, action: Action) -> Iterable[Callable[[], None]]:
         pass

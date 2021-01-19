@@ -1,20 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from collections import defaultdict
+from functools import wraps, partial
+from typing import Callable, Optional, Iterable
 
 from telegram import Chat, User, Update
-from telegram.ext import CallbackContext
-
-from core.exceptions import GameBotException
+from telegram.ext import CallbackContext, Handler
 
 
 class Player:
     def __init__(self, user: User):
-        self._raw_user = user
-
-    def update_user_info(self, user: User) -> None:
-        if user.id == self._raw_user.id:
-            raise GameBotException("Users aren't the same")
-
         self._raw_user = user
 
     def tell_raw(self, *args, **kwargs) -> None:
@@ -47,8 +41,8 @@ class Party:
     private parties).
     """
 
-    def __init__(self, players: list[Player], leader: Optional[Player] = None, chat: Optional[Chat] = None):
-        self.players = players
+    def __init__(self, players: Iterable[Player], leader: Optional[Player] = None, chat: Optional[Chat] = None):
+        self.players = list(players)
         self.leader = leader
 
         self._raw_chat = chat
@@ -73,7 +67,50 @@ class Game(ABC):
     def __init__(self, api: GlobalAPI, party: Party):
         self.api = api
         self.party = party
-    
+
     @abstractmethod
-    async def handle(self, update: TelegramUpdate) -> None:
-        pass
+    def handle(self, action: Action) -> Iterable[Callable[[], None]]:
+        return []
+
+
+class PTBHandlerGame(Game):
+    def __init__(self, api: GlobalAPI, party: Party):
+        super().__init__(api, party)
+
+        self.groups = defaultdict(list)
+
+    def add_handler(self, handler: Handler, group: int = 0):
+        self.groups[group].append(handler)
+
+    def handle(self, action: Action) -> Iterable[Callable[[], None]]:
+        if not isinstance(action, TelegramUpdate):
+            raise NotImplementedError()
+
+        callables = []
+
+        for _, handlers in sorted(self.groups.items()):
+            for handler in handlers:
+                check = handler.check_update(action.raw_update)
+                if check is not None and check is not False:
+                    bound_handler = partial(
+                        handler.handle_update,
+                        action.raw_update, action.raw_context.dispatcher, check, action.raw_context)
+                    callables.append(bound_handler)
+
+        return callables
+
+
+def ptb_handler(handler):
+    @wraps(handler)
+    def wrapped_handler(update: Update, context: CallbackContext):
+        return handler(TelegramUpdate(update, context, Player(update.effective_user)))
+
+    return wrapped_handler
+
+
+def ptb_handler_method(handler):
+    @wraps(handler)
+    def wrapped_handler(self, update: Update, context: CallbackContext):
+        return handler(self, TelegramUpdate(update, context, Player(update.effective_user)))
+
+    return wrapped_handler

@@ -1,25 +1,25 @@
 import random
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import CommandHandler
 
-from core.api import Game, TelegramUpdate, Action, GlobalAPI, Party
+from core.api import TelegramUpdate, GlobalAPI, Party, PTBHandlerGame, ptb_handler_method
 from games.resistance.logic import GameInstance, GameState
 from games.resistance.exceptions import GameError
 
 
-class Resistance(Game):
+class Resistance(PTBHandlerGame):
     # TODO: Get rid of raw API calls
     # TODO: Refactor callbacks
 
     def __init__(self, api: GlobalAPI, party: Party):
         super().__init__(api, party)
 
+        self.add_handler(CommandHandler('select', self.select))
+        # self.add_handler(CallbackQueryHandler(self._handle_callbacks))
+
         self.game = GameInstance(party.players)
         self.start_game()
-
-    async def handle(self, action: Action) -> None:
-        # TODO: Implement command and callback handlers
-        raise NotImplementedError()
 
     def start_game(self) -> None:
         self.game.next_state()
@@ -37,6 +37,7 @@ class Resistance(Game):
         self._show_round_info()
         self._show_proposal_prompt()
 
+    @ptb_handler_method
     def select(self, update: TelegramUpdate) -> None:
         # TODO: Refactor the party selection logic
         raw_args = [x.strip() for x in update.raw_update.message.text.split()[1:]]

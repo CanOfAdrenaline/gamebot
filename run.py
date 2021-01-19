@@ -11,8 +11,8 @@ logging.basicConfig(
 
 def main():
     bot = Bot(token=os.environ['GAMEBOT_TELEGRAM_TOKEN'])
-    bot.add_game('chess', Chess)
-    bot.add_game('resistance', Resistance)
+    bot.game_manager.add_game('chess', Chess)
+    bot.game_manager.add_game('resistance', Resistance)
     bot.run()
     
     
